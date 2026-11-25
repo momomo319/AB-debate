@@ -1,0 +1,7 @@
+body.container {
+  padding-top: 70px;
+}
+.post-content {
+  white-space: pre-line; 
+  overflow-wrap: anywhere; 
+}

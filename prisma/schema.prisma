@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Topic {
+  id         Int      @id @default(autoincrement())
+  title      String
+  optionA    String
+  optionB    String
+  createdBy  String   
+  createdAt  DateTime @db.Timestamptz(6) @default(now())
+
+  posts      Post[]
+  votes      Vote[]
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  content   String
+  postedBy  String   @db.VarChar(255)
+  createdAt DateTime @db.Timestamptz(6) @default(now())
+
+  topicId   Int
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+}
+
+model Vote {
+  id          Int      @id @default(autoincrement())
+  choice      String
+  voterName   String
+  createdAt   DateTime @db.Timestamptz(6) @default(now())
+  updatedAt   DateTime @db.Timestamptz(6) @updatedAt
+  
+  topicId     Int
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, voterName])
+}

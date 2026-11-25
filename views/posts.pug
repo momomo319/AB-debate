@@ -1,0 +1,150 @@
+doctype html
+html(lang="ja")
+  head
+    meta(charset="UTF-8")
+    title #{topic.title} - ABディベート
+    link(rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      integrity="sha256-fx038NkLY4U1TCrBDiu5FWPEa9eiZu01EiLryshJbCo="
+      crossorigin="anonymous")
+    link(rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css")
+    link(rel="stylesheet" href="/style.css")
+    script(src="https://cdn.jsdelivr.net/npm/chart.js")
+  body.container.overflow-scroll
+    nav.navbar.fixed-top.bg-primary
+      div.container-fluid
+        h1.text-light.navbar-brand.mx-auto #{topic.title}
+          i.bi-book.ms-1 
+        div.dropdown
+          button.btn.btn-outline-light.dropdown-toggle(type="button" id="menu" data-bs-toggle="dropdown" aria-expanded="false") #{user}
+            i.bi-gear-fill.ms-1
+          ul.dropdown-menu.dropdown-menu-end(aria-labelledby="menu")
+            li
+              a.dropdown-item(href="/topics") テーマ一覧へ戻る
+  
+    .container.py-4.py-md-5 
+      .row.justify-content-center 
+        .col-lg-9.col-xl-8
+          .card.shadow-sm.boarder-0.mb-5 
+            .card-body.p-4.p-md-5 
+              h1.h4.card-title.mb-3.text-break  #{topic.title}
+              .d-flex.flex-wrap.gap-2.mb-4
+                span.badge.text-bg-primary.px-3.py-2 A: #{topic.optionA} (#{voteCounts.A}票)
+                span.badge.text-bg-danger.px-3.py-2 B: #{topic.optionB} (#{voteCounts.B}票)
+
+              if myVote 
+                p.small.text-muted.mb-3 
+                  i.bi-check-circle-fill.text-success.me-1
+                  | 現在のあなたの投票: #{myVote === 'A' ? topic.optionA : topic.optionB} (#{myVote})
+
+              form.d-flex.flex-wrap.gap-2(method="post" action=`/topics/${topic.id}/vote`)
+                button(type="submit" name="choice" value="A" class=myVote === 'A' ? 'btn-primary' : 'btn-outline-primary') 
+                  | #{topic.optionA} に投票
+                button(type="submit" name="choice" value="B" class=myVote === 'B' ? 'btn-danger' : 'btn-outline-danger') 
+                  | #{topic.optionB} に投票
+
+              div(style="max-width: 320px; margin-top: 16px;")
+                canvas#voteChart 
+    
+
+            // 新規投稿フォーム
+            form(method="post" action=`/topics/${topic.id}`)
+              input(type="hidden" name="oneTimeToken" value=oneTimeToken)
+              .mb-4
+                textarea#content.form-control(name="content" rows="4" required placeholder="あなたの意見や理由を入力してください")
+              .d-flex.justify-content-end
+                button.btn.btn-primary.px-4(type="submit").btn.btn-primary.float-end
+                  i.bi-send.me-1
+                  | 投稿する
+
+            // 立場絞り込み・並び順ソート
+            .d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.mt-4.mb-3
+              h2.h5.mb-0 投稿一覧
+              .d-flex.flex-wrap.gap-2 
+                form(method="get" action=`/topics/${topic.id}` style="margin-bottom: 16px;")
+                  label(for="filter") フィルター :
+                    select(name="filter" onchange="this.form.submit()")
+                      option(value="all" selected=(filter === 'all')) すべて表示
+                      option(value="A" selected=(filter === 'A')) #{topic.optionA}派 
+                      option(value="B" selected=(filter === 'B')) #{topic.optionB}派 
+                  |
+                  label(for="sort") 並び順:
+                    select(name="sort" onchange="this.form.submit()")
+                      option(value="desc" selected=(sort === 'desc')) 新着順
+                      option(value="asc" selected=(sort === 'asc')) 古い順
+
+            // 投稿一覧
+            if posts.length === 0
+              .card.shadow-sm.border-0
+                .card-body.p-4.text-center.text-muted
+                  | 該当する投稿はまだありません。
+            else       
+              .d-flex.flex-column.gap-3 
+                each post in posts
+                  .card.shadow-sm.boarder-0
+                    .card-header.bg-white.d-flex.flex-wrap.justify-content-between.align-items-center.gap-2.py-3.px-4 
+                      .d-flex.flex-wrap.align-items-center.gap-2 
+                        span.fw-semibold #{post.postedBy}
+                        if post.postedBy === 'admin'
+                          i.bi-patch-check-fill.text-primary
+                        if post.voterChoice === 'A'
+                          span.badge.text-bg-primary #{topic.optionA}
+                        else if post.voterChoice === 'B'
+                          span.badge.text-bg-danger #{topic.optionB}
+                        else 
+                          span.badge.text-bg-secondary 未投票
+                        small.text-muted #{post.createdAt}
+                    .card-body.p-4
+                      p.post-content.mb-0 #{post.content}
+                    if user == 'admin'
+                      .card-footer.bg-white.d-flex.justify-content-end.py-2.px-4
+                        form.m-0(method="post" action="/posts/delete" onsubmit="return confirm('この投稿を削除しますか？');")
+                          input(type="hidden" name="id" value=post.id)
+                          button.btn.btn-outline-danger.btn-sm(type="submit")
+                            i.bi-trash
+
+    script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+      integrity="sha256-qlPVgvl+tZTCpcxYJFdHB/m6mDe84wRr+l81VoYPTgQ="
+      crossorigin="anonymous")
+    
+    // 円グラフを描画
+    script.
+      const counts = !{JSON.stringify(voteCounts || { A: 0, B: 0 })};
+      const optionA = !{JSON.stringify(topic.optionA)};
+      const optionB = !{JSON.stringify(topic.optionB)};
+      const total = counts.A + counts.B;
+      const pctA = total > 0 ? Math.round((counts.A / total) * 100) : 0;
+      const pctB = total > 0 ? 100 - pctA : 0;
+
+      const ctx = document.getElementById('voteChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: [
+            `A: ${optionA} (${pctA}% / ${counts.A}票)`,
+            `B: ${optionB} (${pctB}% / ${counts.B}票)`,
+          ],
+          datasets: [{
+            data: total > 0 ? [counts.A, counts.B] : [1, 1],
+          }],
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  if (total === 0) {
+                    return `${context.label}: 投票なし (0%)`;
+                  }
+                  const val = context.raw;
+                  const pct = Math.round((val / total) * 100);
+                  return `${context.label}: ${val}票 (${pct}%)`;
+                },
+              },
+            },
+          },
+        },
+      });
+
+    
